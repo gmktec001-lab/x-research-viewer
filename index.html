@@ -704,12 +704,20 @@ async function init() {
     allSheets = sheets;
     renderSidebar(sheets);
     // Auto-select first output sheet
-    const first = sheets.find(s => s.startsWith('output_'));
-    if (first) selectSheet(first);
+    if (window._sheets && window._sheets.length > 0) selectSheetByIdx(0);
   } catch (e) {
     document.getElementById('sidebar-list').innerHTML =
       `<div class="sidebar-loading" style="color:#f85149">⚠ ${e.message}</div>`;
   }
+}
+
+// Safe ID generator for non-ASCII sheet names
+const sheetIndexMap = {};
+function safeId(s) {
+  if (!(s in sheetIndexMap)) {
+    sheetIndexMap[s] = Object.keys(sheetIndexMap).length;
+  }
+  return 'si-' + sheetIndexMap[s];
 }
 
 function renderSidebar(sheets) {
@@ -721,25 +729,36 @@ function renderSidebar(sheets) {
     return;
   }
 
-  sidebarList.innerHTML = outputSheets.map(s => {
+  // Store sheet names for lookup by index
+  window._sheets = outputSheets;
+
+  sidebarList.innerHTML = outputSheets.map((s, i) => {
     // Extract keyword from sheet name like output_"香水 バニラ"_2026/03/12 10:17
-    const kw = s.replace(/^output_/, '').replace(/_\d{4}\/\d{2}\/\d{2}.*$/, '').replace(/"/g, '');
-    const dt = s.match(/(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2})/)?.[1] || '';
+    const kw = s.replace(/^output_/, '').replace(/_?\d{4}\/\d{2}\/\d{2}.*$/, '').replace(/"/g, '').trim();
+    const dt = s.match(/(\d{4}\/\d{2}\/\d{2})/)?.[1] || '';
+    const mmdd = dt ? dt.slice(5) : '';
     return `
-      <div class="sidebar-item" id="si-${btoa(s)}" onclick="selectSheet('${s.replace(/'/g, "\\'")}')">
+      <div class="sidebar-item" id="si-${i}" data-idx="${i}" onclick="selectSheetByIdx(${i})">
         <span style="font-size:16px">🔍</span>
-        <span class="kw-text" title="${s}">${kw}</span>
-        ${dt ? `<span class="kw-count">${dt.split(' ')[0].slice(5)}</span>` : ''}
+        <span class="kw-text" title="${escHtml(s)}">${escHtml(kw)}</span>
+        ${mmdd ? `<span class="kw-count">${mmdd}</span>` : ''}
       </div>`;
   }).join('');
 }
 
-async function selectSheet(sheetName) {
+function selectSheetByIdx(i) {
+  const sheetName = window._sheets && window._sheets[i];
+  if (sheetName) selectSheet(sheetName, i);
+}
+
+async function selectSheet(sheetName, idx) {
   currentSheet = sheetName;
 
   // Update sidebar active state
   document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-  const activeEl = document.getElementById('si-' + btoa(sheetName));
+  const activeEl = idx !== undefined
+    ? document.getElementById('si-' + idx)
+    : document.querySelector(`.sidebar-item[title="${sheetName}"]`);
   if (activeEl) activeEl.classList.add('active');
 
   // Show loading

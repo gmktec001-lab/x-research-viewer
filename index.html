@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>X 競合調査ツール</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1c2128;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #848d97;
+      --text-sub: #6e7681;
+      --accent: #1d9bf0;
+      --accent-hover: #1a8cd8;
+      --green: #3fb950;
+      --red: #f85149;
+      --yellow: #d29922;
+      --purple: #a371f7;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ─── Auth ─── */
+    #auth-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: var(--bg);
+    }
+
+    .auth-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 48px 40px;
+      width: 360px;
+      text-align: center;
+    }
+
+    .auth-logo {
+      font-size: 40px;
+      font-weight: 900;
+      letter-spacing: -2px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .auth-tagline {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+
+    .auth-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 15px;
+      padding: 12px 16px;
+      outline: none;
+      margin-bottom: 12px;
+      transition: border-color 0.2s;
+    }
+
+    .auth-input:focus { border-color: var(--accent); }
+
+    .auth-btn {
+      width: 100%;
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      padding: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .auth-btn:hover { background: var(--accent-hover); }
+
+    .auth-error {
+      color: var(--red);
+      font-size: 13px;
+      margin-top: 10px;
+      min-height: 18px;
+    }
+
+    /* ─── Main Layout ─── */
+    #main { display: none; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(13, 17, 23, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .topbar-logo {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      color: var(--text);
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+
+    .topbar-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .topbar-spacer { flex: 1; }
+
+    .topbar-refresh {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 13px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .topbar-refresh:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .topbar-stats {
+      font-size: 12px;
+      color: var(--text-sub);
+      flex-shrink: 0;
+    }
+
+    /* ─── Layout Body ─── */
+    .layout {
+      display: flex;
+      min-height: calc(100vh - 56px);
+    }
+
+    /* ─── Sidebar ─── */
+    .sidebar {
+      width: 260px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      padding: 20px 0;
+      position: sticky;
+      top: 56px;
+      height: calc(100vh - 56px);
+      overflow-y: auto;
+    }
+
+    .sidebar-section {
+      padding: 0 16px;
+      margin-bottom: 8px;
+    }
+
+    .sidebar-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 8px 8px 6px;
+    }
+
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text-muted);
+      transition: all 0.15s;
+      border: 1px solid transparent;
+    }
+
+    .sidebar-item:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .sidebar-item.active {
+      background: rgba(29, 155, 240, 0.1);
+      border-color: rgba(29, 155, 240, 0.3);
+      color: var(--accent);
+    }
+
+    .sidebar-item .kw-text {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sidebar-item .kw-count {
+      font-size: 11px;
+      background: var(--surface2);
+      padding: 2px 7px;
+      border-radius: 10px;
+      color: var(--text-sub);
+      flex-shrink: 0;
+    }
+
+    .sidebar-item.active .kw-count {
+      background: rgba(29, 155, 240, 0.15);
+      color: var(--accent);
+    }
+
+    .sidebar-loading {
+      padding: 16px 10px;
+      color: var(--text-sub);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ─── Content ─── */
+    .content {
+      flex: 1;
+      padding: 24px;
+      min-width: 0;
+    }
+
+    /* ─── Controls ─── */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .sheet-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .sheet-date {
+      font-size: 13px;
+      color: var(--text-sub);
+    }
+
+    .sort-select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 13px;
+      padding: 7px 12px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .sort-select:focus { border-color: var(--accent); }
+
+    .view-toggle {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    .view-btn {
+      padding: 7px 12px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.15s;
+    }
+
+    .view-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* ─── Cards Grid ─── */
+    #cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+    }
+
+    #cards-grid.list-view {
+      grid-template-columns: 1fr;
+    }
+
+    /* ─── Post Card ─── */
+    .post-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: border-color 0.2s, transform 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .post-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--purple));
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .post-card:hover {
+      border-color: rgba(29, 155, 240, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .post-card:hover::before { opacity: 1; }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .rank-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .rank-1 { background: rgba(210, 153, 34, 0.15); color: #d29922; border: 1px solid rgba(210, 153, 34, 0.4); }
+    .rank-2 { background: rgba(131, 141, 151, 0.15); color: #8b949e; border: 1px solid rgba(131, 141, 151, 0.4); }
+    .rank-3 { background: rgba(205, 127, 50, 0.15); color: #b08030; border: 1px solid rgba(205, 127, 50, 0.4); }
+    .rank-n  { background: var(--surface2); color: var(--text-sub); border: 1px solid var(--border); }
+
+    .user-info { flex: 1; min-width: 0; }
+
+    .user-display { font-size: 14px; font-weight: 600; color: var(--text); }
+
+    .user-handle {
+      font-size: 13px;
+      color: var(--text-sub);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .followers-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--accent);
+      background: rgba(29, 155, 240, 0.08);
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-weight: 500;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* ─── Post Body ─── */
+    .post-body {
+      font-size: 15px;
+      line-height: 1.65;
+      color: var(--text);
+      margin-bottom: 16px;
+      word-break: break-word;
+      background: var(--surface2);
+      padding: 14px;
+      border-radius: var(--radius-sm);
+      border-left: 3px solid rgba(29, 155, 240, 0.3);
+    }
+
+    .post-body.truncated { cursor: pointer; }
+
+    .post-expand {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--accent);
+      cursor: pointer;
+    }
+
+    /* ─── Metrics ─── */
+    .metrics {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .metric {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .metric-icon { font-size: 14px; }
+
+    .metric-val { font-weight: 600; color: var(--text); }
+
+    .metric.likes .metric-val { color: #f91880; }
+    .metric.reposts .metric-val { color: var(--green); }
+    .metric.comments .metric-val { color: var(--accent); }
+
+    .card-footer {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .post-date {
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+
+    .post-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      text-decoration: none;
+      padding: 5px 12px;
+      border: 1px solid rgba(29, 155, 240, 0.3);
+      border-radius: 20px;
+      transition: all 0.15s;
+    }
+
+    .post-link:hover {
+      background: rgba(29, 155, 240, 0.1);
+      border-color: var(--accent);
+    }
+
+    /* ─── Empty / Loading ─── */
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-sub);
+    }
+
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; color: var(--text-muted); margin-bottom: 8px; }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-overlay {
+      text-align: center;
+      padding: 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      color: var(--text-muted);
+    }
+
+    /* ─── Keyword tag on card ─── */
+    .keyword-tag {
+      display: inline-block;
+      background: rgba(163, 113, 247, 0.1);
+      color: var(--purple);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      border: 1px solid rgba(163, 113, 247, 0.2);
+    }
+
+    /* ─── Summary Bar ─── */
+    .summary-bar {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .summary-card .sc-label { font-size: 11px; color: var(--text-sub); }
+    .summary-card .sc-value { font-size: 20px; font-weight: 700; color: var(--text); }
+    .summary-card .sc-sub { font-size: 11px; color: var(--text-muted); }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .content { padding: 16px; }
+      #cards-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+  </style>
+</head>
+<body>
+
+<!-- Auth -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">𝕏</div>
+    <div class="auth-tagline">競合調査ツール</div>
+    <input type="password" class="auth-input" id="pw-input" placeholder="パスワードを入力"
+      onkeydown="if(event.key==='Enter')checkPw()">
+    <button class="auth-btn" onclick="checkPw()">ログイン →</button>
+    <div class="auth-error" id="pw-error"></div>
+  </div>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <div class="topbar">
+    <span class="topbar-logo">𝕏</span>
+    <span class="topbar-title">競合調査ツール</span>
+    <div class="topbar-spacer"></div>
+    <span class="topbar-stats" id="topbar-stats"></span>
+    <button class="topbar-refresh" onclick="refreshData()">
+      <span id="refresh-icon">↻</span> 更新
+    </button>
+  </div>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">🔍 キーワード</div>
+        <div id="sidebar-list">
+          <div class="sidebar-loading">
+            <div class="loading-spinner"></div> 読み込み中...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <div id="content-area">
+        <div class="empty-state">
+          <div class="icon">📊</div>
+          <h3>キーワードを選択してください</h3>
+          <p>左のサイドバーから調査したいキーワードを選んでください</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Auth ───────────────────────────────────────────────────────────────────
+const PW_HASH = '24bc382e3f81e87483a6402db43ff95418aa77acff75689f481326fa14a940dc';
+
+async function sha256(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function checkPw() {
+  const v = document.getElementById('pw-input').value;
+  if (await sha256(v) === PW_HASH) {
+    sessionStorage.setItem('x_auth', '1');
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    init();
+  } else {
+    document.getElementById('pw-error').textContent = 'パスワードが違います';
+  }
+}
+
+if (sessionStorage.getItem('x_auth') === '1') {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('main').style.display = 'block';
+}
+
+// ─── State ──────────────────────────────────────────────────────────────────
+let allSheets = [];
+let currentSheet = null;
+let currentData = { headers: [], rows: [] };
+let sortMode = 'rank';
+let viewMode = 'grid';
+
+// ─── Column mapping ──────────────────────────────────────────────────────────
+function detectCol(headers, ...keywords) {
+  for (const kw of keywords) {
+    const i = headers.findIndex(h => h && h.includes(kw));
+    if (i >= 0) return i;
+  }
+  return -1;
+}
+
+function getColMap(headers) {
+  return {
+    datetime:  detectCol(headers, '実行日時', '日時', '取得日'),
+    keyword:   detectCol(headers, 'キーワード'),
+    rank:      detectCol(headers, '順位', 'ランク', 'rank'),
+    url:       detectCol(headers, 'URL', 'url', 'リンク'),
+    username:  detectCol(headers, 'ユーザー名', 'username', 'アカウント'),
+    followers: detectCol(headers, 'フォロワー', 'follower'),
+    likes:     detectCol(headers, 'いいね'),
+    comments:  detectCol(headers, 'コメント'),
+    reposts:   detectCol(headers, 'リポスト', 'RT', 'retweet'),
+    body:      detectCol(headers, '投稿本文', '本文', 'テキスト', 'text', 'content'),
+  };
+}
+
+// ─── Number formatting ───────────────────────────────────────────────────────
+function fmtNum(v) {
+  if (v === undefined || v === null || v === '') return '―';
+  const n = parseInt(String(v).replace(/[^0-9]/g, ''), 10);
+  if (isNaN(n)) return v;
+  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return n.toLocaleString();
+}
+
+function toNum(v) {
+  if (!v) return 0;
+  return parseInt(String(v).replace(/[^0-9]/g, ''), 10) || 0;
+}
+
+// ─── API calls ───────────────────────────────────────────────────────────────
+async function apiFetch(params) {
+  const q = new URLSearchParams(params).toString();
+  const r = await fetch('/api/sheets?' + q);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const { sheets } = await apiFetch({ action: 'list' });
+    allSheets = sheets;
+    renderSidebar(sheets);
+    // Auto-select first output sheet
+    const first = sheets.find(s => s.startsWith('output_'));
+    if (first) selectSheet(first);
+  } catch (e) {
+    document.getElementById('sidebar-list').innerHTML =
+      `<div class="sidebar-loading" style="color:#f85149">⚠ ${e.message}</div>`;
+  }
+}
+
+function renderSidebar(sheets) {
+  const outputSheets = sheets.filter(s => s.startsWith('output_'));
+  const sidebarList = document.getElementById('sidebar-list');
+
+  if (outputSheets.length === 0) {
+    sidebarList.innerHTML = '<div class="sidebar-loading">シートが見つかりません</div>';
+    return;
+  }
+
+  sidebarList.innerHTML = outputSheets.map(s => {
+    // Extract keyword from sheet name like output_"香水 バニラ"_2026/03/12 10:17
+    const kw = s.replace(/^output_/, '').replace(/_\d{4}\/\d{2}\/\d{2}.*$/, '').replace(/"/g, '');
+    const dt = s.match(/(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2})/)?.[1] || '';
+    return `
+      <div class="sidebar-item" id="si-${btoa(s)}" onclick="selectSheet('${s.replace(/'/g, "\\'")}')">
+        <span style="font-size:16px">🔍</span>
+        <span class="kw-text" title="${s}">${kw}</span>
+        ${dt ? `<span class="kw-count">${dt.split(' ')[0].slice(5)}</span>` : ''}
+      </div>`;
+  }).join('');
+}
+
+async function selectSheet(sheetName) {
+  currentSheet = sheetName;
+
+  // Update sidebar active state
+  document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+  const activeEl = document.getElementById('si-' + btoa(sheetName));
+  if (activeEl) activeEl.classList.add('active');
+
+  // Show loading
+  document.getElementById('content-area').innerHTML = `
+    <div class="loading-overlay">
+      <div class="loading-spinner" style="width:32px;height:32px;border-width:3px"></div>
+      <span>データを読み込んでいます...</span>
+    </div>`;
+
+  try {
+    currentData = await apiFetch({ action: 'data', sheetName });
+    renderContent();
+  } catch (e) {
+    document.getElementById('content-area').innerHTML =
+      `<div class="empty-state"><div class="icon">⚠️</div><h3>読み込みエラー</h3><p>${e.message}</p></div>`;
+  }
+}
+
+function renderContent() {
+  const { headers, rows } = currentData;
+  const cm = getColMap(headers);
+
+  const kw = currentSheet.replace(/^output_/, '').replace(/_\d{4}\/\d{2}\/\d{2}.*$/, '').replace(/"/g, '');
+  const dt = currentSheet.match(/(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2})/)?.[1] || '';
+
+  // Sort
+  let sorted = [...rows];
+  if (sortMode === 'rank' && cm.rank >= 0) {
+    sorted.sort((a, b) => toNum(a[cm.rank]) - toNum(b[cm.rank]));
+  } else if (sortMode === 'followers' && cm.followers >= 0) {
+    sorted.sort((a, b) => toNum(b[cm.followers]) - toNum(a[cm.followers]));
+  } else if (sortMode === 'likes' && cm.likes >= 0) {
+    sorted.sort((a, b) => toNum(b[cm.likes]) - toNum(a[cm.likes]));
+  }
+
+  // Stats
+  const avgFollowers = cm.followers >= 0
+    ? Math.round(sorted.reduce((s, r) => s + toNum(r[cm.followers]), 0) / sorted.length)
+    : null;
+  const totalLikes = cm.likes >= 0
+    ? sorted.reduce((s, r) => s + toNum(r[cm.likes]), 0)
+    : null;
+  const maxFollowers = cm.followers >= 0
+    ? Math.max(...sorted.map(r => toNum(r[cm.followers])))
+    : null;
+
+  document.getElementById('topbar-stats').textContent = `${sorted.length}件取得 · ${dt}`;
+
+  // Build HTML
+  let html = `
+    <div class="controls">
+      <div>
+        <div class="sheet-title">${kw}</div>
+        ${dt ? `<div class="sheet-date">取得日時: ${dt}</div>` : ''}
+      </div>
+      <div style="flex:1"></div>
+      <div class="view-toggle">
+        <button class="view-btn ${viewMode === 'grid' ? 'active' : ''}" onclick="setView('grid')">⊞</button>
+        <button class="view-btn ${viewMode === 'list' ? 'active' : ''}" onclick="setView('list')">☰</button>
+      </div>
+      <select class="sort-select" onchange="setSort(this.value)">
+        <option value="rank" ${sortMode==='rank'?'selected':''}>順位順</option>
+        ${cm.followers >= 0 ? `<option value="followers" ${sortMode==='followers'?'selected':''}>フォロワー数順</option>` : ''}
+        ${cm.likes >= 0 ? `<option value="likes" ${sortMode==='likes'?'selected':''}>いいね数順</option>` : ''}
+      </select>
+    </div>`;
+
+  // Summary bar
+  if (sorted.length > 0) {
+    html += `<div class="summary-bar">
+      <div class="summary-card">
+        <span class="sc-label">取得件数</span>
+        <span class="sc-value">${sorted.length}</span>
+        <span class="sc-sub">投稿</span>
+      </div>`;
+    if (avgFollowers !== null) {
+      html += `<div class="summary-card">
+        <span class="sc-label">平均フォロワー数</span>
+        <span class="sc-value">${fmtNum(avgFollowers)}</span>
+        <span class="sc-sub">フォロワー</span>
+      </div>
+      <div class="summary-card">
+        <span class="sc-label">最大フォロワー数</span>
+        <span class="sc-value">${fmtNum(maxFollowers)}</span>
+        <span class="sc-sub">フォロワー</span>
+      </div>`;
+    }
+    if (totalLikes !== null) {
+      html += `<div class="summary-card">
+        <span class="sc-label">合計いいね数</span>
+        <span class="sc-value">${fmtNum(totalLikes)}</span>
+        <span class="sc-sub">いいね</span>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Cards
+  html += `<div id="cards-grid" class="${viewMode === 'list' ? 'list-view' : ''}">`;
+
+  if (sorted.length === 0) {
+    html += `<div class="empty-state"><div class="icon">📭</div><h3>データがありません</h3></div>`;
+  } else {
+    sorted.forEach((row, i) => {
+      const rank = cm.rank >= 0 ? toNum(row[cm.rank]) || (i + 1) : (i + 1);
+      const username = cm.username >= 0 ? row[cm.username] || '' : '';
+      const followers = cm.followers >= 0 ? row[cm.followers] : null;
+      const likes = cm.likes >= 0 ? row[cm.likes] : null;
+      const comments = cm.comments >= 0 ? row[cm.comments] : null;
+      const reposts = cm.reposts >= 0 ? row[cm.reposts] : null;
+      const body = cm.body >= 0 ? row[cm.body] || '' : '';
+      const url = cm.url >= 0 ? row[cm.url] || '' : '';
+      const datetime = cm.datetime >= 0 ? row[cm.datetime] || '' : '';
+      const keyword = cm.keyword >= 0 ? row[cm.keyword] || '' : '';
+
+      const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-n';
+      const rankLabel = rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `#${rank}`;
+
+      const bodyLines = body.split('\n');
+      const bodyShort = bodyLines.length > 6 ? bodyLines.slice(0, 6).join('\n') + '…' : body;
+      const hasTrunc = bodyLines.length > 6 || body.length > 300;
+
+      // Handle @username display
+      const displayName = username.startsWith('@') ? username : (username ? '@' + username : '');
+
+      html += `
+        <div class="post-card">
+          <div class="card-header">
+            <div class="rank-badge ${rankClass}">${rankLabel}</div>
+            <div class="user-info">
+              <div class="user-display">${escHtml(username)}</div>
+              ${followers !== null ? `<div class="followers-badge">👥 ${fmtNum(followers)}</div>` : ''}
+            </div>
+          </div>
+          ${keyword ? `<div class="keyword-tag"># ${escHtml(keyword)}</div>` : ''}
+          <div class="post-body" id="pb-${i}" ${hasTrunc ? 'class="post-body truncated"' : ''}>${escHtml(bodyShort).replace(/\n/g, '<br>')}</div>
+          ${hasTrunc ? `<span class="post-expand" onclick="expandPost(${i},'${escAttr(body)}')">▼ 続きを見る</span>` : ''}
+          <div class="metrics">
+            ${likes !== null ? `<div class="metric likes"><span class="metric-icon">♥</span><span class="metric-val">${fmtNum(likes)}</span></div>` : ''}
+            ${reposts !== null ? `<div class="metric reposts"><span class="metric-icon">🔁</span><span class="metric-val">${fmtNum(reposts)}</span></div>` : ''}
+            ${comments !== null ? `<div class="metric comments"><span class="metric-icon">💬</span><span class="metric-val">${fmtNum(comments)}</span></div>` : ''}
+          </div>
+          <div class="card-footer">
+            <span class="post-date">${escHtml(datetime)}</span>
+            ${url ? `<a class="post-link" href="${escAttr(url)}" target="_blank" rel="noopener">𝕏 で見る ↗</a>` : ''}
+          </div>
+        </div>`;
+    });
+  }
+
+  html += `</div>`;
+  document.getElementById('content-area').innerHTML = html;
+}
+
+function expandPost(i, fullText) {
+  const el = document.getElementById('pb-' + i);
+  if (el) {
+    el.innerHTML = escHtml(fullText).replace(/\n/g, '<br>');
+    el.nextElementSibling?.remove();
+  }
+}
+
+function setSort(val) {
+  sortMode = val;
+  renderContent();
+}
+
+function setView(val) {
+  viewMode = val;
+  renderContent();
+}
+
+async function refreshData() {
+  const icon = document.getElementById('refresh-icon');
+  icon.style.animation = 'spin 0.6s linear infinite';
+  if (currentSheet) {
+    try {
+      currentData = await apiFetch({ action: 'data', sheetName: currentSheet });
+      renderContent();
+    } catch (e) { /* ignore */ }
+  } else {
+    await init();
+  }
+  icon.style.animation = '';
+}
+
+// ─── Escape helpers ──────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function escAttr(s) {
+  return String(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ─── Boot ────────────────────────────────────────────────────────────────────
+if (sessionStorage.getItem('x_auth') === '1') init();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "x-research-viewer",
+  "version": "1.0.0",
+  "description": "X競合調査ツール",
+  "dependencies": {
+    "googleapis": "^140.0.0"
+  }
+}
